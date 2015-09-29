@@ -1,5 +1,5 @@
 # VIAGrA
-Vector Illustration And Graphics API (for the Löve framework)
+**V**ector **I**llustration **A**nd **Gr**aphics **A**PI (for the Löve framework)
 
 Disclaimer: This library is a work in progress. It lacks support for many SVG features and may not work in all cases.
 
