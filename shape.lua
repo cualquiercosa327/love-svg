@@ -1,5 +1,6 @@
 local Helper = require 'svg_helper'
-local Path = require "path"
+local Path = require 'path'
+
 local Shape = {}
 Shape.__index = Shape
 function Shape.new(garbage, element)

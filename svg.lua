@@ -1,6 +1,14 @@
 --SVG.lua
+
+--make this work from anywhere
+local __path = ((...):match('(.*%.)[^%.]+$') or '')
+local __oldRequire = require
+require = function(s) --has to be global to work in other files
+	return __oldRequire(__path..s)
+end
 local XmlParser = require "XmlParser" 
 local Shape = require "shape"
+require = __oldRequire --return to normal functionality after
 
 
 local SVG = {}
