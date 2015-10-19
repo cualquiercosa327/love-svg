@@ -48,6 +48,11 @@ function wn_PnPoly( P, points )
 	end
 	return wn
 end
+
+function evenOdd(wn) return wn%2 ~= 0 end
+function nonZero(wn) return wn ~= 0 end
+local fillRule = evenOdd
+
 function makeArc(x0, y0, rx, ry, phi, large_arc, sweep, x, y)
 	--compute 1/2 distance between current and final point
 	local dx2 = (x0 - x) / 2
@@ -134,9 +139,10 @@ function makeEllipse(x, y, a, b, phi, theta, deltaTheta)
   return coords
 end
 
-function Path.new(garbage, fill, stroke, str)
+function Path.new(garbage, fill, stroke, attr)
 	local parsed = {}
 	local instructions = {}
+	local str = attr.d
 	str = str:gsub("[A-Za-z]", " %1 ")
 	for c in str:gmatch('[-]-[0-9a-zA-Z.]+') do table.insert(parsed, c) end
 
@@ -145,7 +151,7 @@ function Path.new(garbage, fill, stroke, str)
 	local current = 1
 
 	for i,v in ipairs(parsed) do
-		if v:match('[A-Za-z]') then --is letter
+		if v:match('[A-z]') then --is letter
 			if instructions[current] == nil then
 				instructions[current] = {}
 			end
@@ -179,8 +185,8 @@ function Path.new(garbage, fill, stroke, str)
 			end
 		end
 	end
-	local shapes = eval(instructions,x,y)
-	local thing = {stroke = stroke, fill = fill, x = 0, y = 0, shapes = shapes}
+	local subShapes = eval(instructions,x,y)	
+	local thing = {stroke = stroke, fill = fill, x = 0, y = 0, subShapes = subShapes, Attributes=attr}
 	return setmetatable(thing, Path)
 end
 
@@ -192,28 +198,34 @@ function eval(instructions, x, y)
 		if fillCoords[currentClosedShape] == nil then
 			fillCoords[currentClosedShape] = {}
 		end
+		
+		local currentLength = #fillCoords[currentClosedShape]
+		
 		if	 v.action == "M" or (v.action == "m" and i == 1) then
 			localX = v[1]
 			localY = v[2]
 			currentClosedShape = currentClosedShape + 1
-			fillCoords[currentClosedShape] = {}
-			table.insert(fillCoords[currentClosedShape], localX)
-			table.insert(fillCoords[currentClosedShape], localY)
+			fillCoords[currentClosedShape] = {localX, localY}
+			--table.insert(fillCoords[currentClosedShape], localX)
+			--table.insert(fillCoords[currentClosedShape], localY)
 		elseif v.action == "m" then
 			localX = v[1] + localX
 			localY = v[2] + localY
 			currentClosedShape = currentClosedShape + 1
-			fillCoords[currentClosedShape] = {}
-			table.insert(fillCoords[currentClosedShape], localX)
-			table.insert(fillCoords[currentClosedShape], localY)
+			fillCoords[currentClosedShape] = {localX, localY}
+			--table.insert(fillCoords[currentClosedShape], localX)
+			--table.insert(fillCoords[currentClosedShape], localY)
 		elseif v.action == "L" then
 			localX = v[1]
 			localY = v[2]
 		elseif v.action == "l" then
 			localX = v[1] + localX
 			localY = v[2] + localY
-			table.insert(fillCoords[currentClosedShape], localX)
-			table.insert(fillCoords[currentClosedShape], localY)
+			--table.insert(fillCoords[currentClosedShape], localX)
+			--table.insert(fillCoords[currentClosedShape], localY)
+						
+			fillCoords[currentClosedShape][currentLength+1] = localX
+			fillCoords[currentClosedShape][currentLength+2] = localY
 		elseif v.action == "A" then
 
 			local points = makeArc(localX, localY, unpack(v))
@@ -221,7 +233,9 @@ function eval(instructions, x, y)
 			localX = v[6]
 			localY = v[7]
 			for j,k in ipairs(points) do
-				table.insert(fillCoords[currentClosedShape], k)
+			
+				--table.insert(fillCoords[currentClosedShape], k)
+				fillCoords[currentClosedShape][currentLength+j] = k
 			end
 		elseif v.action == "a" then
 
@@ -230,27 +244,36 @@ function eval(instructions, x, y)
 			localX = localX + v[6]
 			localY = localY + v[7]
 			for j,k in ipairs(points) do
-				table.insert(fillCoords[currentClosedShape], k)
+				--table.insert(fillCoords[currentClosedShape], k)
+				fillCoords[currentClosedShape][currentLength+j] = k
 			end
 		elseif v.action == "H" then
 			localX = v[1]
-			table.insert(fillCoords[currentClosedShape], localX)
-			table.insert(fillCoords[currentClosedShape], localY)
+			--table.insert(fillCoords[currentClosedShape], localX)
+			--table.insert(fillCoords[currentClosedShape], localY)
+			fillCoords[currentClosedShape][currentLength+1] = localX
+			fillCoords[currentClosedShape][currentLength+2] = localY
 		elseif v.action == "h" then
 
 			localX = v[1] + localX
-			table.insert(fillCoords[currentClosedShape], localX)
-			table.insert(fillCoords[currentClosedShape], localY)
+			--table.insert(fillCoords[currentClosedShape], localX)
+			--table.insert(fillCoords[currentClosedShape], localY)
+			fillCoords[currentClosedShape][currentLength+1] = localX
+			fillCoords[currentClosedShape][currentLength+2] = localY
 		elseif v.action == "V" then
 
 			localY = v[1]
-			table.insert(fillCoords[currentClosedShape], localX)
-			table.insert(fillCoords[currentClosedShape], localY)
+			--table.insert(fillCoords[currentClosedShape], localX)
+			--table.insert(fillCoords[currentClosedShape], localY)
+			fillCoords[currentClosedShape][currentLength+1] = localX
+			fillCoords[currentClosedShape][currentLength+2] = localY
 		elseif v.action == "v" then
 
 			localY = v[1]
-			table.insert(fillCoords[currentClosedShape], localX)
-			table.insert(fillCoords[currentClosedShape], localY)
+			--table.insert(fillCoords[currentClosedShape], localX)
+			--table.insert(fillCoords[currentClosedShape], localY)
+			fillCoords[currentClosedShape][currentLength+1] = localX
+			fillCoords[currentClosedShape][currentLength+2] = localY
 		elseif v.action == "Q" then
 		elseif v.action == "q" then
 		elseif v.action == "C" then
@@ -264,7 +287,8 @@ function eval(instructions, x, y)
 			localX = v[5]
 			localY = v[6]
 			for j,k in ipairs(points) do
-				table.insert(fillCoords[currentClosedShape], k)
+				--table.insert(fillCoords[currentClosedShape], k)
+				fillCoords[currentClosedShape][currentLength+j] = k
 			end
 		elseif v.action == "c" then
 			local curve = love.math.newBezierCurve()
@@ -276,7 +300,8 @@ function eval(instructions, x, y)
 			localX = v[5] + localX
 			localY = v[6] + localY
 			for j,k in ipairs(points) do
-				table.insert(fillCoords[currentClosedShape], k)
+				--table.insert(fillCoords[currentClosedShape], k)
+				fillCoords[currentClosedShape][currentLength+j] = k
 			end
 		elseif v.action == "S" then
 		elseif v.action == "s" then
@@ -288,10 +313,11 @@ function eval(instructions, x, y)
 		
 	end
 	
-	local shapes = {}
+	local subShapes = {}
 	for i,v in ipairs(fillCoords) do
 		local points = {}
 		local bbox = {x1}
+		--print("new shape")
 		for j=1,#v,2 do
 			if j == 1 or not (math.floor(v[j]) == math.floor(v[j-2]) and math.floor(v[j+1]) == math.floor(v[j-1])) then
 				if bbox.x1 == nil or v[j] < bbox.x1 then
@@ -308,26 +334,38 @@ function eval(instructions, x, y)
 				end
 				table.insert(points, v[j])
 				table.insert(points, v[j+1])
+				--print(v[j]..", "..v[j+1])
 			end
 		end
-		shapes[i] = {points = points, bbox = bbox}
-	end
-	return shapes
-end
-function Path:draw()
-	for i,v in ipairs(self.shapes) do
-		love.graphics.setColor(unpack(self.fill))
-		for x=v.bbox.x1,v.bbox.x2,1 do
-			for y=v.bbox.y1,v.bbox.y2,1 do
-				if wn_PnPoly({x,y}, v.points) ~= 0 then
-					love.graphics.point(x,y)
+		
+		local fillPoints = {}
+		for x=bbox.x1,bbox.x2,1 do
+			for y=bbox.y1,bbox.y2,1 do
+				if fillRule(wn_PnPoly({x,y}, points)) then
+					fillPoints[#fillPoints+1] = {x,y}
 				end
 			end
 		end
-		love.graphics.setColor(unpack(self.stroke))
-		for j=1,#v.points-2,2 do
-			love.graphics.line(v.points[j], v.points[j+1], v.points[j+2], v.points[j+3])
+		subShapes[i] = {points = points, bbox = bbox, fillPoints = fillPoints}
+	end
+	return subShapes
+end
+
+function Path:draw()
+	for i,v in ipairs(self.subShapes) do
+		love.graphics.setColor(unpack(self.fill))
+		
+		for j,point in ipairs(v.fillPoints)do
+			love.graphics.point(point[1],point[2])
 		end
+		
+		love.graphics.setColor(unpack(self.stroke))
+		love.graphics.setLineWidth(love.graphics.getLineWidth()/2)
+		--for j=1,#v.points-2,2 do
+		--	love.graphics.line(v.points[j], v.points[j+1], v.points[j+2], v.points[j+3])
+		--end
+		love.graphics.line(v.points)
+		love.graphics.setLineWidth(love.graphics.getLineWidth()*2)
 		--love.graphics.line(unpack(v.points))
 	end
 end
