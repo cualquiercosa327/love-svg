@@ -17,8 +17,9 @@ function Shape.new(garbage, element)
 	local tempStroke = Helper.calcRGB(element.Attributes.stroke)
 	local tempO = element.Attributes.opacity or 1
 	
-	local display, tempFill2, tempStroke2, fo, so = Helper.parseStyle(element.Attributes.style)
+	local display, tempFill2, tempStroke2, fo, so, otherStyles = Helper.parseStyle(element.Attributes.style)
 	self.display = display
+	self.style = otherStyles
 	self.fill = tempFill or tempFill2 or {0,0,0}
 	if self.fill == nil then
 		self.fill = {0,0,0,0}
@@ -60,7 +61,7 @@ function Shape:draw()
 	love.graphics.push()
 		--local obm = love.graphics.getBlendMode()
 		--love.graphics.setBlendMode("additive")
-		love.graphics.setLineWidth( 2 )
+		love.graphics.setLineWidth((self.style["stroke-width"] or 1)*3)
 		love.graphics.setLineStyle("smooth")
 		Helper.transform(self.transform)
 		if self.type == "rect" then

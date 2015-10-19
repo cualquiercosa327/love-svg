@@ -24,6 +24,7 @@ end
 
 local helper = {}
 
+
 function helper.transform(transformString)
 	
 	if transformString == nil then return end
@@ -87,11 +88,12 @@ function helper.calcRGB(colorString)
 end
 
 function helper.parseStyle(styleString)
-	if styleString == nil then return true,nil,nil,1,1 end
+	if styleString == nil then return true,nil,nil,1,1,{} end
 	--local style = {}
 	local fill,stroke
 	local fo,so,o = 1,1,1
 	local display = true
+	local styles = {}
 	for prop,val in styleString:gmatch('([a-z-]+)%s*:%s*([^;]+)') do
 		--style[prop] = val
 		if prop == "fill" then
@@ -107,10 +109,36 @@ function helper.parseStyle(styleString)
 		elseif prop == "display" then
 			
 			display = (val:match('none') == nil)
+		else
+			--wip
+			styles[prop] = parseStyleVal(val)
 		end
 	end
-	return display, fill, stroke, fo*o, so*o
+	return display, fill, stroke, fo*o, so*o, styles
+		
 end
-
+function parseStyleVal(str)
+	local values = {}
+	
+	for val in str:gmatch('([^%s]+)') do
+		print(val)
+		values[#values+1] = val
+	end
+	if #values > 1 then
+		return values --for now
+	end
+	local val = values[1]
+	--number
+	local num,unit = val:match('([0-9%.%-]+)([a-z]*)')
+	if num ~= nil then
+		return num --for now
+	end
+	--number
+	local str = val:match('%s*([^%s]+)%s*')
+	if str ~= nil then
+		return str --for now
+	end
+	return values
+end
 
 return helper

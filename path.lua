@@ -194,13 +194,13 @@ function eval(instructions, x, y)
 	local localX, localY = x, y
 	local fillCoords = {}
 	local currentClosedShape = 0
+	
 	for i,v in ipairs(instructions) do
 		if fillCoords[currentClosedShape] == nil then
 			fillCoords[currentClosedShape] = {}
 		end
 		
 		local currentLength = #fillCoords[currentClosedShape]
-		
 		if	 v.action == "M" or (v.action == "m" and i == 1) then
 			localX = v[1]
 			localY = v[2]
@@ -218,6 +218,9 @@ function eval(instructions, x, y)
 		elseif v.action == "L" then
 			localX = v[1]
 			localY = v[2]
+			
+			fillCoords[currentClosedShape][currentLength+1] = localX
+			fillCoords[currentClosedShape][currentLength+2] = localY
 		elseif v.action == "l" then
 			localX = v[1] + localX
 			localY = v[2] + localY
@@ -303,12 +306,15 @@ function eval(instructions, x, y)
 				--table.insert(fillCoords[currentClosedShape], k)
 				fillCoords[currentClosedShape][currentLength+j] = k
 			end
-		elseif v.action == "S" then
+		elseif v.action == "S" then --implement these at some point
 		elseif v.action == "s" then
 		elseif v.action == "T" then
 		elseif v.action == "t" then
-		elseif v.action:match("Zz") then
+		elseif v.action:match("[Zz]") ~= nil then
 			--nothing
+			--actually connect current point to original point
+			fillCoords[currentClosedShape][currentLength+1] = fillCoords[currentClosedShape][1]
+			fillCoords[currentClosedShape][currentLength+2] = fillCoords[currentClosedShape][2]
 		end
 		
 	end
@@ -364,6 +370,7 @@ function Path:draw()
 		--for j=1,#v.points-2,2 do
 		--	love.graphics.line(v.points[j], v.points[j+1], v.points[j+2], v.points[j+3])
 		--end
+		
 		love.graphics.line(v.points)
 		love.graphics.setLineWidth(love.graphics.getLineWidth()*2)
 		--love.graphics.line(unpack(v.points))
