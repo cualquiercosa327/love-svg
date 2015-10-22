@@ -45,12 +45,12 @@ function SVG:repaint()
 end
 function SVG:draw(px, py, s)
 	love.graphics.push()
-	love.graphics.translate(px,py)
-	love.graphics.scale(s)
-	love.graphics.setColor(255,255,255,255)
-	for i,shape in ipairs(self.shapes) do
-		shape:draw()
-	end
+		love.graphics.translate(px,py)
+		love.graphics.scale(s)
+		love.graphics.setColor(255,255,255,255)
+		for i,shape in ipairs(self.shapes) do
+			shape:draw()
+		end
 	love.graphics.pop()
 end
 return SVG

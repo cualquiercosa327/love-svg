@@ -121,7 +121,7 @@ function parseStyleVal(str)
 	local values = {}
 	
 	for val in str:gmatch('([^%s]+)') do
-		print(val)
+		--print(val)
 		values[#values+1] = val
 	end
 	if #values > 1 then

@@ -29,6 +29,10 @@ local expectedArgs = {
 	M = 2,
 	m = 2
 }
+local fillRules = {
+	evenodd = function(wn) return wn%2 ~= 0 end,
+	nonzero = function(wn) return wn ~= 0 end
+}
 function isLeft(P0, P1, P2 )
 	return ( (P1[1] - P0[1]) * (P2[2] - P0[2]) - (P2[1] -  P0[1]) * (P1[2] - P0[2]) )
 end
@@ -48,10 +52,6 @@ function wn_PnPoly( P, points )
 	end
 	return wn
 end
-
-function evenOdd(wn) return wn%2 ~= 0 end
-function nonZero(wn) return wn ~= 0 end
-local fillRule = evenOdd
 
 function makeArc(x0, y0, rx, ry, phi, large_arc, sweep, x, y)
 	--compute 1/2 distance between current and final point
@@ -138,8 +138,51 @@ function makeEllipse(x, y, a, b, phi, theta, deltaTheta)
   end
   return coords
 end
-
-function Path.new(garbage, fill, stroke, attr)
+function makeRects(cubes)
+	local rects = {}
+	y = 1
+	start = true
+	while y <= #cubes[1] do
+		x = 1
+		while x <= #cubes+1 do
+			if x <= #cubes and cubes[x][y] > 1 then
+				if start then
+					rects[#rects+1] = {x=x, y=y, w=1, h=1, color = {math.random(0,255), math.random(0,255), math.random(0,255)}}
+					start = false
+				else
+					rects[#rects].w = rects[#rects].w+1
+				end
+				cubes[x][y] = 1
+			else
+				if not start and y < #cubes[1] then
+					ty = y+1
+					while ty <= #cubes[1] do
+						flag = true
+						for tx=rects[#rects].x,rects[#rects].x+rects[#rects].w - 1 do
+							if cubes[tx][ty] < 1 then
+								flag = false
+							end
+						end
+						if flag then
+							for tx=rects[#rects].x,rects[#rects].x+rects[#rects].w - 1 do
+								cubes[tx][ty] = 1
+							end
+							rects[#rects].h = rects[#rects].h+1
+							ty = ty + 1
+						else
+							break
+						end
+					end
+				end
+				start = true
+			end
+			x=x+1
+		end
+		y=y+1
+	end
+	return rects
+end
+function Path.new(garbage, fill, stroke, attr, fillRule)
 	local parsed = {}
 	local instructions = {}
 	local str = attr.d
@@ -185,12 +228,12 @@ function Path.new(garbage, fill, stroke, attr)
 			end
 		end
 	end
-	local subShapes = eval(instructions,x,y)	
+	local subShapes = eval(instructions,x,y, (fillRule or "evenodd"))	
 	local thing = {stroke = stroke, fill = fill, x = 0, y = 0, subShapes = subShapes, Attributes=attr}
 	return setmetatable(thing, Path)
 end
 
-function eval(instructions, x, y)
+function eval(instructions, x, y, fillRule)
 	local localX, localY = x, y
 	local fillCoords = {}
 	local currentClosedShape = 0
@@ -299,7 +342,7 @@ function eval(instructions, x, y)
 			curve:insertControlPoint(localX+v[1], localY+v[2])
 			curve:insertControlPoint(localX+v[3], localY+v[4])
 			curve:insertControlPoint(localX+v[5], localY+v[6])
-			local points = curve:render(5)
+			local points = curve:render(4)
 			localX = v[5] + localX
 			localY = v[6] + localY
 			for j,k in ipairs(points) do
@@ -345,14 +388,29 @@ function eval(instructions, x, y)
 		end
 		
 		local fillPoints = {}
+		local fpIndex = 1
 		for x=bbox.x1,bbox.x2,1 do
 			for y=bbox.y1,bbox.y2,1 do
-				if fillRule(wn_PnPoly({x,y}, points)) then
-					fillPoints[#fillPoints+1] = {x,y}
+				if fillRules[fillRule](wn_PnPoly({x,y}, points)) then
+					fillPoints[fpIndex] = x
+					fillPoints[fpIndex+1] = y
+					fpIndex = fpIndex + 2
 				end
 			end
 		end
-		subShapes[i] = {points = points, bbox = bbox, fillPoints = fillPoints}
+		
+		local fillGrid = {}
+		for x=1,bbox.x2-bbox.x1,1 do
+			fillGrid[x] = {}
+			for y=1,bbox.y2-bbox.y1,1 do
+				fillGrid[x][y] = 0
+				if fillRules[fillRule](wn_PnPoly({x+bbox.x1,y+bbox.y1}, points)) then
+					fillGrid[x][y] = 2
+				end
+			end
+		end
+		local fillRects = makeRects(fillGrid)
+		subShapes[i] = {points = points, bbox = bbox, fillRects = fillRects}
 	end
 	return subShapes
 end
@@ -360,20 +418,19 @@ end
 function Path:draw()
 	for i,v in ipairs(self.subShapes) do
 		love.graphics.setColor(unpack(self.fill))
-		
-		for j,point in ipairs(v.fillPoints)do
-			love.graphics.point(point[1],point[2])
+
+		--still not a great solution but better than before
+		for j,rect in ipairs(v.fillRects) do
+			love.graphics.rectangle("fill", rect.x+v.bbox.x1-.5,rect.y+v.bbox.y1-.5,rect.w,rect.h)
 		end
 		
 		love.graphics.setColor(unpack(self.stroke))
-		love.graphics.setLineWidth(love.graphics.getLineWidth()/2)
-		--for j=1,#v.points-2,2 do
-		--	love.graphics.line(v.points[j], v.points[j+1], v.points[j+2], v.points[j+3])
-		--end
-		
-		love.graphics.line(v.points)
-		love.graphics.setLineWidth(love.graphics.getLineWidth()*2)
-		--love.graphics.line(unpack(v.points))
+		for j=1,#v.points-3,2 do
+			love.graphics.line(v.points[j], v.points[j+1], v.points[j+2], v.points[j+3])
+		end
+		--polyline has some issues.
+		--fix overlapping later
+		--love.graphics.line(v.points)
 	end
 end
 

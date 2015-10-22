@@ -43,7 +43,7 @@ function Shape.new(garbage, element)
 	end
 	
 	if self.type == "path" then
-		self.path = Path(self.fill, self.stroke, self._attributes)
+		self.path = Path(self.fill, self.stroke, self._attributes, self.style["fill-rule"])
 	else
 		self.path = "you really need fix this at some point, logan"
 	end
@@ -54,15 +54,15 @@ end
 
 setmetatable(Shape, {__call=Shape.new})
 
-function Shape:draw()
+function Shape:draw(scale)
 	if not self.display then return end
 	--local oldCanvas = love.graphics.getCanvas()
 	--love.graphics.setCanvas(self.canvas)
 	love.graphics.push()
 		--local obm = love.graphics.getBlendMode()
 		--love.graphics.setBlendMode("additive")
-		love.graphics.setLineWidth((self.style["stroke-width"] or 1)*3)
-		love.graphics.setLineStyle("smooth")
+		love.graphics.setLineWidth(self.style["stroke-width"] or 1)
+		--love.graphics.setLineStyle("smooth")
 		Helper.transform(self.transform)
 		if self.type == "rect" then
 			love.graphics.setColor(unpack(self.fill))
